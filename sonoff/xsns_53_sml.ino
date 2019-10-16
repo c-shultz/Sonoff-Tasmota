@@ -22,35 +22,32 @@
 */
 
 #ifdef USE_SML_M
-//
 
 #define XSNS_53 53
 
-// Baudrate des D0 Ausgangs, sollte bei den meisten Zählern 9600 sein
+// default baudrate of D0 output
 #define SML_BAUDRATE 9600
 
-// sende dies alle N Sekunden, für Zähler die erst auf Anforderung etwas senden
+// send this every N seconds (for meters that only send data on demand)
+// not longer supported, use scripting instead
 //#define SML_SEND_SEQ
 
 // debug counter input to led for counter1 and 2
 //#define DEBUG_CNT_LED1 2
 //#define DEBUG_CNT_LED1 2
 
-// use analog optical counter sensor with AD Converter ADS1115
+// use analog optical counter sensor with AD Converter ADS1115 (not yet functional)
 //#define ANALOG_OPTO_SENSOR
-// fototransistor mit pullup an A0, A1 des ADS1115 A3 and +3.3V
-// die pegel und die verstärkung können dann automatisch kalibriert werden
+// fototransistor with pullup at A0, A1 of ADS1115 A3 and +3.3V
+// level and amplification are automatically set
 
-
-// support für mehr als 2 Meter mit spezieller Tasmota Serial Version
-// dazu muss der modifizierte Treiber => TasmotaSerial-2.3.1 ebenfalls kopiert werden
 
 #include <TasmotaSerial.h>
 
-// use special no wait serial driver
+// use special no wait serial driver, should be always on
 #define SPECIAL_SS
 
-// addresse a bug in meter DWS74
+// addresses a bug in meter DWS74
 //#define DWS74_BUG
 
 // max 23 chars
@@ -143,8 +140,16 @@ struct METER_DESC {
   uint16_t flag;
   int32_t params;
   char prefix[8];
+  int8_t trxpin;
+  uint8_t tsecs;
+  char *txmem;
+  uint8_t index;
+  uint8_t max_index;
 };
 
+// this descriptor method is no longer supported
+// but still functional for simple meters
+// use scripting method instead
 // meter list , enter new meters here
 //=====================================================
 #define EHZ161_0 1
@@ -170,7 +175,7 @@ struct METER_DESC {
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'o',0,SML_BAUDRATE,"OBIS"}};
+  [0]={3,'o',0,SML_BAUDRATE,"OBIS",-1,1,0}};
 const uint8_t meter[]=
 "1,1-0:1.8.0*255(@1," D_TPWRIN ",KWh," DJ_TPWRIN ",4|"
 "1,1-0:2.8.0*255(@1," D_TPWROUT ",KWh," DJ_TPWROUT ",4|"
@@ -188,7 +193,7 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'o',0,SML_BAUDRATE,"OBIS"}};
+  [0]={3,'o',0,SML_BAUDRATE,"OBIS",-1,1,0}};
 const uint8_t meter[]=
 "1,1-0:1.8.1*255(@1," D_TPWRIN ",KWh," DJ_TPWRIN ",4|"
 "1,1-0:2.8.1*255(@1," D_TPWROUT ",KWh," DJ_TPWROUT ",4|"
@@ -202,7 +207,7 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'s',0,SML_BAUDRATE,"SML"}};
+  [0]={3,'s',0,SML_BAUDRATE,"SML",-1,1,0}};
 // 2 Richtungszähler EHZ SML 8 bit 9600 baud, binär
 const uint8_t meter[]=
 //0x77,0x07,0x01,0x00,0x01,0x08,0x00,0xff
@@ -221,7 +226,7 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'s',0,SML_BAUDRATE,"SML"}};
+  [0]={3,'s',0,SML_BAUDRATE,"SML",-1,1,0}};
 // 2 Richtungszähler EHZ SML 8 bit 9600 baud, binär
 // verbrauch total
 const uint8_t meter[]=
@@ -239,7 +244,7 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'s',0,SML_BAUDRATE,"SML"}};
+  [0]={3,'s',0,SML_BAUDRATE,"SML",-1,1,0}};
 // 2 Richtungszähler EHZ SML 8 bit 9600 baud, binär
 // verbrauch total
 const uint8_t meter[]=
@@ -255,7 +260,7 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'s',0,SML_BAUDRATE,"strom"}};
+  [0]={3,'s',0,SML_BAUDRATE,"strom",-1,1,0}};
 const uint8_t meter[]=
 //0x77,0x07,0x01,0x00,0x01,0x08,0x00,0xff
 "1,77070100010800ff@1000," D_TPWRIN ",KWh," DJ_TPWRIN ",4|"
@@ -278,7 +283,7 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'s',0,SML_BAUDRATE,"SML"}};
+  [0]={3,'s',0,SML_BAUDRATE,"SML",-1,1,0}};
 const uint8_t meter[]=
 //0x77,0x07,0x01,0x00,0x01,0x08,0x01,0xff
 "1,77070100010800ff@1000," D_TPWRIN ",KWh," DJ_TPWRIN ",4|"
@@ -294,9 +299,9 @@ const uint8_t meter[]=
 #define METERS_USED 3
 
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'o',0,SML_BAUDRATE,"OBIS"}, // harware serial RX pin
-  [1]={14,'s',0,SML_BAUDRATE,"SML"}, // GPIO14 software serial
-  [2]={4,'o',0,SML_BAUDRATE,"OBIS2"}}; // GPIO4 software serial
+  [0]={3,'o',0,SML_BAUDRATE,"OBIS",-1,1,0}, // harware serial RX pin
+  [1]={14,'s',0,SML_BAUDRATE,"SML",-1,1,0}, // GPIO14 software serial
+  [2]={4,'o',0,SML_BAUDRATE,"OBIS2",-1,1,0}}; // GPIO4 software serial
 
 // 3 Zähler definiert
 const uint8_t meter[]=
@@ -323,8 +328,8 @@ const uint8_t meter[]=
 #define METERS_USED 2
 
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'o',0,SML_BAUDRATE,"OBIS1"}, // harware serial RX pin
-  [1]={14,'o',0,SML_BAUDRATE,"OBIS2"}}; // GPIO14 software serial
+  [0]={3,'o',0,SML_BAUDRATE,"OBIS1",-1,1,0}, // harware serial RX pin
+  [1]={14,'o',0,SML_BAUDRATE,"OBIS2",-1,1,0}}; // GPIO14 software serial
 
 // 2 Zähler definiert
 const uint8_t meter[]=
@@ -345,9 +350,9 @@ const uint8_t meter[]=
 #define METERS_USED 3
 
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'o',0,SML_BAUDRATE,"OBIS1"}, // harware serial RX pin
-  [1]={14,'o',0,SML_BAUDRATE,"OBIS2"},
-  [2]={1,'o',0,SML_BAUDRATE,"OBIS3"}};
+  [0]={3,'o',0,SML_BAUDRATE,"OBIS1",-1,1,0}, // harware serial RX pin
+  [1]={14,'o',0,SML_BAUDRATE,"OBIS2",-1,1,0},
+  [2]={1,'o',0,SML_BAUDRATE,"OBIS3",-1,1,0}};
 
 // 3 Zähler definiert
 const uint8_t meter[]=
@@ -375,7 +380,7 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-[0]={3,'o',0,SML_BAUDRATE,"OBIS"}};
+[0]={3,'o',0,SML_BAUDRATE,"OBIS",-1,1,0}};
 const uint8_t meter[]=
 "1,1-0:1.8.1*255(@1," D_TPWRIN ",KWh," DJ_TPWRIN ",4|"
 "1,=d 1 10 @1," D_TPWRCURR ",W," DJ_TPWRCURR ",0|"
@@ -388,8 +393,8 @@ const uint8_t meter[]=
 #undef METERS_USED
 #define METERS_USED 1
 struct METER_DESC const meter_desc[METERS_USED]={
-[0]={3,'s',0,SML_BAUDRATE,"SML"}};
-// 2 Richtungszähler EHZ SML 8 bit 9600 baud, binär
+[0]={3,'s',0,SML_BAUDRATE,"SML",-1,1,0}};
+// 2 direction meter EHZ SML 8 bit 9600 baud, binary
 const uint8_t meter[]=
 //0x77,0x07,0x01,0x00,0x01,0x08,0x00,0xff
 "1,77070100010800ff@1000," D_TPWRIN ",KWh," DJ_TPWRIN ",4|"
@@ -405,23 +410,23 @@ const uint8_t meter[]=
 "1,77070100000009ff@#," D_METERNR ",," DJ_METERNR ",0";
 #endif
 
-// Beispiel für einen OBIS Stromzähler und einen Gaszähler + Wasserzähler
+// example  OBIS power meter + gas and water counter
 #if METER==COMBO3b
 #undef METERS_USED
 #define METERS_USED 3
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={3,'o',0,SML_BAUDRATE,"OBIS"}, // harware serial RX pin
+  [0]={3,'o',0,SML_BAUDRATE,"OBIS",-1,1,0}, // harware serial RX pin
   [1]={14,'c',0,50,"Gas"}, // GPIO14 gas counter
   [2]={1,'c',0,10,"Wasser"}}; // water counter
 
-// 3 Zähler definiert
+// 3 meters defined
 const uint8_t meter[]=
 "1,1-0:1.8.1*255(@1," D_TPWRIN ",KWh," DJ_TPWRIN ",4|"
 "1,1-0:2.8.1*255(@1," D_TPWROUT ",KWh," DJ_TPWROUT ",4|"
 "1,=d 2 10 @1," D_TPWRCURR ",W," DJ_TPWRCURR ",0|"
 "1,1-0:0.0.0*255(@#)," D_METERNR ",," DJ_METERNR ",0|"
 
-// bei gaszählern (countern) muss der Vergleichsstring so aussehen wie hier
+// with counters the comparison string must be exactly this string
 "2,1-0:1.8.0*255(@100," D_GasIN ",cbm," DJ_COUNTER ",2|"
 
 "3,1-0:1.8.0*255(@100," D_H2oIN ",cbm," DJ_COUNTER ",2";
@@ -433,9 +438,9 @@ const uint8_t meter[]=
 #define METERS_USED 3
 
 struct METER_DESC const meter_desc[METERS_USED]={
-  [0]={1,'c',0,10,"H20"}, // GPIO1 Wasser Zähler
-  [1]={4,'c',0,50,"GAS"}, // GPIO4 gas Zähler
-  [2]={3,'s',0,SML_BAUDRATE,"SML"}}; // SML harware serial RX pin
+  [0]={1,'c',0,10,"H20",-1,1,0}, // GPIO1 water counter
+  [1]={4,'c',0,50,"GAS",-1,1,0}, // GPIO4 gas counter
+  [2]={3,'s',0,SML_BAUDRATE,"SML",-1,1,0}}; // SML harware serial RX pin
 
 const uint8_t meter[]=
 //----------------------------Wasserzähler--sensor53 c1------------------------------------
@@ -489,10 +494,12 @@ const uint8_t meter[]=
 
 // median filter eliminates outliers, but uses much RAM and CPU cycles
 // 672 bytes extra RAM with MAX_VARS = 16
-//#define USE_MEDIAN_FILTER
+// default compile on, but must be enabled by descriptor flag 16
+// may be undefined if RAM must be saved
+#define USE_SML_MEDIAN_FILTER
 
 // max number of vars , may be adjusted
-#define MAX_VARS 16
+#define MAX_VARS 20
 // max number of meters , may be adjusted
 #define MAX_METERS 5
 double meter_vars[MAX_VARS];
@@ -504,6 +511,7 @@ uint8_t meters_used;
 
 struct METER_DESC const *meter_desc_p;
 const uint8_t *meter_p;
+uint8_t meter_spos[MAX_METERS];
 
 // software serial pointers
 TasmotaSerial *meter_ss[MAX_METERS];
@@ -518,24 +526,58 @@ char meter_id[MAX_METERS][METER_ID_SIZE];
 
 #define EBUS_SYNC		0xaa
 #define EBUS_ESC    0xa9
-uint8_t ebus_pos;
 
+uint8_t sml_send_blocks;
+uint8_t sml_100ms_cnt;
+uint8_t sml_desc_cnt;
 
-#ifdef USE_MEDIAN_FILTER
+#ifdef USE_SML_MEDIAN_FILTER
 // median filter, should be odd size
 #define MEDIAN_SIZE 5
-struct MEDIAN_FILTER {
+struct SML_MEDIAN_FILTER {
 double buffer[MEDIAN_SIZE];
 int8_t index;
 } sml_mf[MAX_VARS];
 
+
+double sml_median_array(double *array,uint8_t len) {
+      uint8_t ind[len];
+      uint8_t mind=0,index=0,flg;
+      double min=FLT_MAX;
+
+      for (uint8_t hcnt=0; hcnt<len/2+1; hcnt++) {
+          for (uint8_t mcnt=0; mcnt<len; mcnt++) {
+              flg=0;
+              for (uint8_t icnt=0; icnt<index; icnt++) {
+                  if (ind[icnt]==mcnt) {
+                      flg=1;
+                  }
+              }
+              if (!flg) {
+                  if (array[mcnt]<min) {
+                      min=array[mcnt];
+                      mind=mcnt;
+                  }
+              }
+          }
+          ind[index]=mind;
+          index++;
+          min=FLT_MAX;
+      }
+      return array[ind[len/2]];
+  }
+
+
 // calc median
-double median(struct MEDIAN_FILTER* mf, double in) {
-  double tbuff[MEDIAN_SIZE],tmp;
-  uint8_t flag;
+double sml_median(struct SML_MEDIAN_FILTER* mf, double in) {
+  //double tbuff[MEDIAN_SIZE],tmp;
+  //uint8_t flag;
   mf->buffer[mf->index]=in;
   mf->index++;
   if (mf->index>=MEDIAN_SIZE) mf->index=0;
+
+  return sml_median_array(mf->buffer,MEDIAN_SIZE);
+/*
   // sort list and take median
   memmove(tbuff,mf->buffer,sizeof(tbuff));
   for (byte ocnt=0; ocnt<MEDIAN_SIZE; ocnt++) {
@@ -551,6 +593,7 @@ double median(struct MEDIAN_FILTER* mf, double in) {
     if (!flag) break;
   }
   return tbuff[MEDIAN_SIZE/2];
+  */
 }
 #endif
 
@@ -712,8 +755,7 @@ uint16_t ADS1115::read_register(uint8_t reg)
 
         uint8_t result = Wire.requestFrom((int)m_address, 2, 1);
         if (result != 2) {
-                Wire.flush();
-                return 0;
+          return 0;
         }
 
         uint16_t val;
@@ -789,33 +831,23 @@ uint8_t dump2log=0;
 
 bool Serial_available() {
   uint8_t num=dump2log&7;
-  if (num<1 || num>meters_used) return Serial.available();
-  if (num==1) {
-      return Serial.available();
-  } else {
-    return meter_ss[num-1]->available();
-  }
+  if (num<1 || num>meters_used) num=1;
+  return meter_ss[num-1]->available();
 }
 
 uint8_t Serial_read() {
   uint8_t num=dump2log&7;
-  if (num<1 || num>meters_used) return Serial.read();
-  if (num==1) {
-      return Serial.read();
-  } else {
-    return meter_ss[num-1]->read();
-  }
+  if (num<1 || num>meters_used) num=1;
+  return meter_ss[num-1]->read();
 }
 
 uint8_t Serial_peek() {
   uint8_t num=dump2log&7;
-  if (num<1 || num>meters_used) return Serial.peek();
-  if (num==1) {
-      return Serial.peek();
-  } else {
-    return meter_ss[num-1]->peek();
-  }
+  if (num<1 || num>meters_used) num=1;
+  return meter_ss[num-1]->peek();
 }
+
+uint8_t sml_logindex;
 
 void Dump2log(void) {
 
@@ -823,7 +855,7 @@ int16_t index=0,hcnt=0;
 uint32_t d_lastms;
 uint8_t dchars[16];
 
-  if (!SML_SAVAILABLE) return;
+  //if (!SML_SAVAILABLE) return;
 
   if (dump2log&8) {
     // combo mode
@@ -868,7 +900,25 @@ uint8_t dchars[16];
       }
     }
   } else {
-    //while (SML_SAVAILABLE) {
+    if (meter_desc_p[(dump2log&7)-1].type=='o') {
+      // obis
+      while (SML_SAVAILABLE) {
+        char c=SML_SREAD&0x7f;
+        if (c=='\n' || c=='\r') {
+          log_data[sml_logindex]=0;
+          AddLog(LOG_LEVEL_INFO);
+          sml_logindex=2;
+          log_data[0]=':';
+          log_data[1]=' ';
+          break;
+        }
+        log_data[sml_logindex]=c;
+        if (sml_logindex<sizeof(log_data)-2) {
+          sml_logindex++;
+        }
+      }
+    } else {
+      //while (SML_SAVAILABLE) {
       index=0;
       log_data[index]=':';
       index++;
@@ -877,45 +927,36 @@ uint8_t dchars[16];
       d_lastms=millis();
       while ((millis()-d_lastms)<40) {
         if (SML_SAVAILABLE) {
-          if (meter_desc_p[(dump2log&7)-1].type=='o') {
-            // obis
-            char c=SML_SREAD&0x7f;
-            if (c=='\n' || c=='\r') break;
-            log_data[index]=c;
-            index++;
+          unsigned char c;
+          if (meter_desc_p[(dump2log&7)-1].type=='e') {
+            // ebus
+            c=SML_SREAD;
+            sprintf(&log_data[index],"%02x ",c);
+            index+=3;
+            if (c==EBUS_SYNC) break;
           } else {
-            unsigned char c;
-            if (meter_desc_p[(dump2log&7)-1].type=='e') {
-              // ebus
-              c=SML_SREAD;
-              sprintf(&log_data[index],"%02x ",c);
-              index+=3;
-              if (c==EBUS_SYNC) break;
+            // sml
+            if (sml_start==0x77) {
+              sml_start=0;
             } else {
-              // sml
-              if (sml_start==0x77) {
-                sml_start=0;
-              } else {
-                c=SML_SPEAK;
-                if (c==0x77) {
-                  sml_start=c;
-                  break;
-                }
+              c=SML_SPEAK;
+              if (c==0x77) {
+                sml_start=c;
+                break;
               }
-              c=SML_SREAD;
-              sprintf(&log_data[index],"%02x ",c);
-              index+=3;
             }
+            c=SML_SREAD;
+            sprintf(&log_data[index],"%02x ",c);
+            index+=3;
           }
         }
       }
-      if (index>0) {
+      if (index>2) {
         log_data[index]=0;
         AddLog(LOG_LEVEL_INFO);
       }
     }
-  //}
-
+  }
 }
 
 // skip sml entries
@@ -1066,9 +1107,8 @@ uint8_t hexnibble(char chr) {
 
 uint8_t sb_counter;
 
-// because orig CharToDouble was defective
-// fixed in Tasmota  6.4.1.19 20190222
-double xCharToDouble(const char *str)
+// need double precision in this driver
+double CharToDouble(const char *str)
 {
   // simple ascii to double, because atof or strtod are too large
   char strbuf[24];
@@ -1155,17 +1195,22 @@ uint8_t ebus_CalculateCRC( uint8_t *Data, uint16_t DataLen ) {
    return Crc;
 }
 
+void sml_empty_receiver(uint32_t meters) {
+  while (meter_ss[meters]->available()) {
+    meter_ss[meters]->read();
+  }
+}
+
+
 void sml_shift_in(uint32_t meters,uint32_t shard) {
   uint32_t count;
-  if (meter_desc_p[meters].type!='e') {
+  if (meter_desc_p[meters].type!='e' && meter_desc_p[meters].type!='m' && meter_desc_p[meters].type!='p') {
     // shift in
     for (count=0; count<SML_BSIZ-1; count++) {
       smltbuf[meters][count]=smltbuf[meters][count+1];
     }
   }
-  uint8_t iob;
-  if (shard) iob=(uint8_t)Serial.read();
-  else iob=(uint8_t)meter_ss[meters]->read();
+  uint8_t iob=(uint8_t)meter_ss[meters]->read();
 
   if (meter_desc_p[meters].type=='o') {
     smltbuf[meters][SML_BSIZ-1]=iob&0x7f;
@@ -1173,37 +1218,49 @@ void sml_shift_in(uint32_t meters,uint32_t shard) {
     smltbuf[meters][SML_BSIZ-1]=iob;
   } else if (meter_desc_p[meters].type=='r') {
     smltbuf[meters][SML_BSIZ-1]=iob;
+  } else if (meter_desc_p[meters].type=='m') {
+    smltbuf[meters][meter_spos[meters]] = iob;
+    meter_spos[meters]++;
+    if (meter_spos[meters]>=9) {
+      SML_Decode(meters);
+      sml_empty_receiver(meters);
+      meter_spos[meters]=0;
+    }
+  } else if (meter_desc_p[meters].type=='p') {
+    smltbuf[meters][meter_spos[meters]] = iob;
+    meter_spos[meters]++;
+    if (meter_spos[meters]>=7) {
+      SML_Decode(meters);
+      sml_empty_receiver(meters);
+      meter_spos[meters]=0;
+    }
   } else {
     if (iob==EBUS_SYNC) {
     	// should be end of telegramm
       // QQ,ZZ,PB,SB,NN ..... CRC, ACK SYNC
-      if (ebus_pos>4+5) {
+      if (meter_spos[meters]>4+5) {
       	// get telegramm lenght
         uint8_t tlen=smltbuf[meters][4]+5;
         // test crc
         if (smltbuf[meters][tlen]=ebus_CalculateCRC(smltbuf[meters],tlen)) {
             ebus_esc(smltbuf[meters],tlen);
-            //eBus_analyze();
-            // XX0204UUSS@
             SML_Decode(meters);
-            //AddLog_P(LOG_LEVEL_INFO, PSTR("ebus block found"));
-						//ebus_set_timeout();
         } else {
             // crc error
             //AddLog_P(LOG_LEVEL_INFO, PSTR("ebus crc error"));
         }
       }
-      ebus_pos=0;
+      meter_spos[meters]=0;
       return;
     }
-		smltbuf[meters][ebus_pos] = iob;
-		ebus_pos++;
-		if (ebus_pos>=SML_BSIZ) {
-			ebus_pos=0;
+		smltbuf[meters][meter_spos[meters]] = iob;
+		meter_spos[meters]++;
+		if (meter_spos[meters]>=SML_BSIZ) {
+			meter_spos[meters]=0;
 		}
   }
   sb_counter++;
-  if (meter_desc_p[meters].type!='e') SML_Decode(meters);
+  if (meter_desc_p[meters].type!='e' && meter_desc_p[meters].type!='m' && meter_desc_p[meters].type!='p') SML_Decode(meters);
 }
 
 
@@ -1214,14 +1271,8 @@ uint32_t meters;
     for (meters=0; meters<meters_used; meters++) {
       if (meter_desc_p[meters].type!='c') {
         // poll for serial input
-        if (meter_desc_p[meters].srcpin==3) {
-          while (Serial.available()) {
-            sml_shift_in(meters,1);
-          }
-        } else {
-          while (meter_ss[meters]->available()) {
-            sml_shift_in(meters,0);
-          }
+        while (meter_ss[meters]->available()) {
+          sml_shift_in(meters,0);
         }
       }
     }
@@ -1351,7 +1402,8 @@ void SML_Decode(uint8_t index) {
     } else {
       // compare value
       uint8_t found=1;
-      int32_t ebus_dval=99;
+      uint32_t ebus_dval=99;
+      float mbus_dval=99;
       while (*mp!='@') {
         if (meter_desc_p[mindex].type=='o' || meter_desc_p[mindex].type=='c') {
           if (*mp++!=*cp++) {
@@ -1366,14 +1418,22 @@ void SML_Decode(uint8_t index) {
               found=0;
             }
           } else {
-            // ebus or raw
+            // ebus mbus pzem or raw
             // XXHHHHSSUU
             if (*mp=='x' && *(mp+1)=='x') {
               //ignore
               mp+=2;
               cp++;
-            } else if (*mp=='u' && *(mp+1)=='u' && *(mp+2)=='u' && *(mp+3)=='u'){
-              uint16_t val = *cp|(*(cp+1)<<8);
+            } else if (!strncmp(mp,"uuuuuuuu",8)) {
+              uint32_t val= (cp[0]<<24)|(cp[1]<<16)|(cp[2]<<8)|(cp[3]<<0);
+              ebus_dval=val;
+              mbus_dval=val;
+              mp+=8;
+              cp+=4;
+            }
+            else if (*mp=='u' && *(mp+1)=='u' && *(mp+2)=='u' && *(mp+3)=='u'){
+              uint16_t val = cp[0]|(cp[1]<<8);
+              mbus_dval=val;
               ebus_dval=val;
               mp+=4;
               cp+=2;
@@ -1382,7 +1442,7 @@ void SML_Decode(uint8_t index) {
               ebus_dval=val;
               mp+=2;
             }
-            else if (*mp=='s' && *(mp+1)=='s' && *(mp+2)=='s' && *(mp+3)=='s'){
+            else if (*mp=='s' && *(mp+1)=='s' && *(mp+2)=='s' && *(mp+3)=='s') {
               int16_t val = *cp|(*(cp+1)<<8);
               ebus_dval=val;
               mp+=4;
@@ -1392,7 +1452,46 @@ void SML_Decode(uint8_t index) {
               int8_t val = *cp++;
               ebus_dval=val;
               mp+=2;
-            } else {
+            }
+            else if (!strncmp(mp,"ffffffff",8)) {
+              uint32_t val= (cp[0]<<24)|(cp[1]<<16)|(cp[2]<<8)|(cp[3]<<0);
+              float *fp=(float*)&val;
+              ebus_dval=*fp;
+              mbus_dval=*fp;
+              mp+=8;
+              cp+=4;
+            }
+            else if (!strncmp(mp,"FFffFFff",8)) {
+              // reverse word float
+              uint32_t val= (cp[1]<<0)|(cp[0]<<8)|(cp[3]<<16)|(cp[2]<<24);
+              float *fp=(float*)&val;
+              ebus_dval=*fp;
+              mbus_dval=*fp;
+              mp+=8;
+              cp+=4;
+            }
+            else if (!strncmp(mp,"eeeeee",6)) {
+              uint32_t val=(cp[0]<<16)|(cp[1]<<8)|(cp[2]<<0);
+              mbus_dval=val;
+              mp+=6;
+              cp+=3;
+            }
+            else if (!strncmp(mp,"vvvvvv",6)) {
+              mbus_dval=(float)((cp[0]<<8)|(cp[1])) + ((float)cp[2]/10.0);
+              mp+=6;
+              cp+=3;
+            }
+            else if (!strncmp(mp,"cccccc",6)) {
+              mbus_dval=(float)((cp[0]<<8)|(cp[1])) + ((float)cp[2]/100.0);
+              mp+=6;
+              cp+=3;
+            }
+            else if (!strncmp(mp,"pppp",4)) {
+              mbus_dval=(float)((cp[0]<<8)|cp[1]);
+              mp+=4;
+              cp+=2;
+            }
+            else {
               uint8_t val = hexnibble(*mp++) << 4;
               val |= hexnibble(*mp++);
               if (val!=*cp++) {
@@ -1421,15 +1520,15 @@ void SML_Decode(uint8_t index) {
           }
         } else {
           double dval;
-          if (meter_desc_p[mindex].type!='e' && meter_desc_p[mindex].type!='r') {
+          if (meter_desc_p[mindex].type!='e' && meter_desc_p[mindex].type!='r' && meter_desc_p[mindex].type!='m' && meter_desc_p[mindex].type!='p') {
             // get numeric values
             if (meter_desc_p[mindex].type=='o' || meter_desc_p[mindex].type=='c') {
-              dval=xCharToDouble((char*)cp);
+              dval=CharToDouble((char*)cp);
             } else {
               dval=sml_getvalue(cp,mindex);
             }
           } else {
-            // ebus
+            // ebus pzem or mbus or raw
             if (*mp=='b') {
               mp++;
               uint8_t shift=*mp&7;
@@ -1437,15 +1536,42 @@ void SML_Decode(uint8_t index) {
               ebus_dval&=1;
               mp+=2;
             }
-            dval=ebus_dval;
+            if (*mp=='i') {
+              // mbus index
+              mp++;
+              uint8_t mb_index=strtol((char*)mp,(char**)&mp,10);
+              if (mb_index!=meter_desc_p[mindex].index) {
+                goto nextsect;
+              }
+              uint16_t crc = MBUS_calculateCRC(&smltbuf[mindex][0],7);
+              if (lowByte(crc)!=smltbuf[mindex][7]) goto nextsect;
+              if (highByte(crc)!=smltbuf[mindex][8]) goto nextsect;
+              dval=mbus_dval;
+              //AddLog_P2(LOG_LEVEL_INFO, PSTR(">> %s"),mp);
+              mp++;
+            } else {
+              if (meter_desc_p[mindex].type=='p') {
+                uint8_t crc = SML_PzemCrc(&smltbuf[mindex][0],6);
+                if (crc!=smltbuf[mindex][6]) goto nextsect;
+                dval=mbus_dval;
+              } else {
+                dval=ebus_dval;
+              }
+            }
+
           }
-#ifdef USE_MEDIAN_FILTER
-          meter_vars[vindex]=median(&sml_mf[vindex],dval);
+#ifdef USE_SML_MEDIAN_FILTER
+          if (meter_desc_p[mindex].flag&16) {
+            meter_vars[vindex]=sml_median(&sml_mf[vindex],dval);
+          } else {
+            meter_vars[vindex]=dval;
+          }
 #else
           meter_vars[vindex]=dval;
 #endif
+//AddLog_P2(LOG_LEVEL_INFO, PSTR(">> %s"),mp);
           // get scaling factor
-          double fac=xCharToDouble((char*)mp);
+          double fac=CharToDouble((char*)mp);
           meter_vars[vindex]/=fac;
           SML_Immediate_MQTT((const char*)mp,vindex,mindex);
         }
@@ -1491,8 +1617,7 @@ void SML_Immediate_MQTT(const char *mp,uint8_t index,uint8_t mindex) {
         if (dp&0x10) {
           // immediate mqtt
           dtostrfd(meter_vars[index],dp&0xf,tpowstr);
-          ResponseBeginTime();
-          ResponseAppend_P(PSTR(",\"%s\":{\"%s\":%s}}"),meter_desc_p[mindex].prefix,jname,tpowstr);
+          ResponseTime_P(PSTR(",\"%s\":{\"%s\":%s}}"),meter_desc_p[mindex].prefix,jname,tpowstr);
           MqttPublishPrefixTopic_P(TELE, PSTR(D_RSLT_SENSOR), Settings.flag.mqtt_sensor_retain);
         }
       }
@@ -1636,6 +1761,7 @@ void SML_Show(boolean json) {
    }
 
 
+/*
 #ifdef USE_DOMOTICZ
   if (json && !tele_period) {
     char str[16];
@@ -1647,6 +1773,7 @@ void SML_Show(boolean json) {
     DomoticzSensor(DZ_CURRENT, str);  // Current
   }
 #endif  // USE_DOMOTICZ
+*/
 }
 
 struct SML_COUNTER {
@@ -1665,6 +1792,14 @@ struct SML_COUNTER {
 #endif
 } sml_counters[MAX_COUNTERS];
 
+
+#ifndef ARDUINO_ESP8266_RELEASE_2_3_0       // Fix core 2.5.x ISR not in IRAM Exception
+void SML_CounterUpd(uint8_t index) ICACHE_RAM_ATTR;
+void SML_CounterUpd1(void) ICACHE_RAM_ATTR;
+void SML_CounterUpd2(void) ICACHE_RAM_ATTR;
+void SML_CounterUpd3(void) ICACHE_RAM_ATTR;
+void SML_CounterUpd4(void) ICACHE_RAM_ATTR;
+#endif  // ARDUINO_ESP8266_RELEASE_2_3_0
 
 void SML_CounterUpd(uint8_t index) {
   uint32_t ltime=millis()-sml_counters[index].sml_counter_ltime;
@@ -1712,42 +1847,60 @@ void SML_Init(void) {
   meter_desc_p=meter_desc;
   meter_p=meter;
 
+  sml_desc_cnt=0;
+
   for (uint32_t cnt=0;cnt<MAX_VARS;cnt++) {
     meter_vars[cnt]=0;
   }
 
+  for (uint32_t cnt=0;cnt<MAX_METERS;cnt++) {
+    meter_spos[cnt]=0;
+  }
 
 #ifdef USE_SCRIPT
+
+  for (uint32_t cnt=0;cnt<MAX_METERS;cnt++) {
+    if (script_meter_desc[cnt].txmem) {
+     free(script_meter_desc[cnt].txmem);
+     script_meter_desc[cnt].txmem=0;
+    }
+  }
+
   uint8_t meter_script=Run_Scripter(">M",-2,0);
   if (meter_script==99) {
     // use script definition
     if (script_meter) free(script_meter);
+    script_meter=0;
     uint8_t *tp=0;
     uint16_t index=0;
     uint8_t section=0;
+    uint8_t srcpin=0;
     char *lp=glob_script_mem.scriptptr;
+    sml_send_blocks=0;
     while (lp) {
       if (!section) {
         if (*lp=='>' && *(lp+1)=='M') {
           lp+=2;
           meters_used=strtol(lp,0,10);
           section=1;
-          uint32_t mlen=METER_DEF_SIZE;
-          for (uint32_t cnt=0;cnt<METER_DEF_SIZE;cnt++) {
-            if (lp[cnt]=='#') {
+          uint32_t mlen=0;
+          for (uint32_t cnt=0;cnt<METER_DEF_SIZE-1;cnt++) {
+            if (lp[cnt]=='\n' && lp[cnt+1]=='#') {
               mlen=cnt+3;
               break;
             }
           }
-          if (mlen==METER_DEF_SIZE) return; // missing end #
+          if (mlen==0) return; // missing end #
           script_meter=(uint8_t*)calloc(mlen,1);
-          if (!script_meter) return;
+          if (!script_meter) {
+            goto dddef_exit;
+          }
           tp=script_meter;
           goto next_line;
         }
       }
       else {
-        if (*lp=='#') {
+        if (!*lp || *lp=='#' || *lp=='>') {
           if (*(tp-1)=='|') *(tp-1)=0;
           break;
         }
@@ -1755,14 +1908,18 @@ void SML_Init(void) {
           // add descriptor +1,1,c,0,10,H20
           //toLogEOL(">>",lp);
           lp++;
-          uint8_t index=*lp&7;
+          index=*lp&7;
           lp+=2;
           if (index<1 || index>meters_used) goto next_line;
           index--;
-          uint8_t srcpin=strtol(lp,&lp,10);
+          srcpin=strtol(lp,&lp,10);
           if (Gpio_used(srcpin)) {
-            AddLog_P(LOG_LEVEL_INFO, PSTR("gpio double define!"));
-            return;
+            AddLog_P(LOG_LEVEL_INFO, PSTR("gpio rx double define!"));
+dddef_exit:
+            if (script_meter) free(script_meter);
+            script_meter=0;
+            meters_used=METERS_USED;
+            goto init10;
           }
           script_meter_desc[index].srcpin=srcpin;
           if (*lp!=',') goto next_line;
@@ -1777,13 +1934,47 @@ void SML_Init(void) {
           lp++;
           script_meter_desc[index].prefix[7]=0;
           for (uint32_t cnt=0; cnt<8; cnt++) {
-            if (*lp==SCRIPT_EOL) {
+            if (*lp==SCRIPT_EOL || *lp==',') {
               script_meter_desc[index].prefix[cnt]=0;
-              lp--;
               break;
             }
             script_meter_desc[index].prefix[cnt]=*lp++;
           }
+          if (*lp==',') {
+            lp++;
+            script_meter_desc[index].trxpin=strtol(lp,&lp,10);
+            if (Gpio_used(script_meter_desc[index].trxpin)) {
+              AddLog_P(LOG_LEVEL_INFO, PSTR("gpio tx double define!"));
+              goto dddef_exit;
+            }
+            if (*lp!=',') goto next_line;
+            lp++;
+            script_meter_desc[index].tsecs=strtol(lp,&lp,10);
+            if (*lp==',') {
+              lp++;
+              char txbuff[256];
+              uint32_t txlen=0,tx_entries=1;
+              for (uint32_t cnt=0; cnt<sizeof(txbuff); cnt++) {
+                if (*lp==SCRIPT_EOL) {
+                  txbuff[cnt]=0;
+                  txlen=cnt;
+                  break;
+                }
+                if (*lp==',') tx_entries++;
+                txbuff[cnt]=*lp++;
+              }
+              if (txlen) {
+                script_meter_desc[index].txmem=(char*)calloc(txlen+2,1);
+                if (script_meter_desc[index].txmem) {
+                  strcpy(script_meter_desc[index].txmem,txbuff);
+                }
+                script_meter_desc[index].index=0;
+                script_meter_desc[index].max_index=tx_entries;
+                sml_send_blocks++;
+              }
+            }
+          }
+          if (*lp==SCRIPT_EOL) lp--;
           goto next_line;
         }
 
@@ -1821,6 +2012,7 @@ next_line:
   }
 #endif
 
+init10:
   typedef void (*function)();
   function counter_callbacks[] = {SML_CounterUpd1,SML_CounterUpd2,SML_CounterUpd3,SML_CounterUpd4};
   uint8_t cindex=0;
@@ -1857,19 +2049,20 @@ next_line:
         }
     } else {
       // serial input, init
-      if (meter_desc_p[meters].srcpin==3) {
-        ClaimSerial();
-        SetSerialBaudrate(meter_desc_p[meters].params);
-      } else {
 #ifdef SPECIAL_SS
-        meter_ss[meters] = new TasmotaSerial(meter_desc_p[meters].srcpin,-1,0,1);
+        if (meter_desc_p[meters].type=='m' || meter_desc_p[meters].type=='p') {
+          meter_ss[meters] = new TasmotaSerial(meter_desc_p[meters].srcpin,meter_desc_p[meters].trxpin,1);
+        } else {
+          meter_ss[meters] = new TasmotaSerial(meter_desc_p[meters].srcpin,meter_desc_p[meters].trxpin,1,1);
+        }
 #else
-        meter_ss[meters] = new TasmotaSerial(meter_desc_p[meters].srcpin,-1);
+        meter_ss[meters] = new TasmotaSerial(meter_desc_p[meters].srcpin,meter_desc_p[meters].trxpin,1);
 #endif
         if (meter_ss[meters]->begin(meter_desc_p[meters].params)) {
           meter_ss[meters]->flush();
         }
-      }
+        if (meter_ss[meters]->hardwareSerial()) { ClaimSerial(); }
+
     }
   }
 
@@ -1953,25 +2146,128 @@ uint32_t ctime=millis();
   }
 }
 
-#ifdef SML_SEND_SEQ
-#define SML_SEQ_PERIOD 5
-uint8_t sml_seq_cnt;
-void SendSeq(void) {
-  sml_seq_cnt++;
-  if (sml_seq_cnt>SML_SEQ_PERIOD) {
-    sml_seq_cnt=0;
-    // send sequence every N Seconds
-    uint8_t sequence[]={0x2F,0x3F,0x21,0x0D,0x0A,0};
-    uint8_t *ucp=sequence;
-    while (*ucp) {
-      uint8_t iob=*ucp++;
-      // for no parity disable next line
-      iob|=(CalcEvenParity(iob)<<7);
-      Serial.write(iob);
+#ifdef USE_SCRIPT
+char *SML_Get_Sequence(char *cp,uint32_t index) {
+  if (!index) return cp;
+  uint32_t cindex=0;
+  while (cp) {
+    cp=strchr(cp,',');
+    if (cp) {
+      cp++;
+      cindex++;
+      if (cindex==index) {
+        return cp;
+      }
     }
   }
 }
 
+void SML_Check_Send(void) {
+  sml_100ms_cnt++;
+  char *cp;
+  for (uint32_t cnt=sml_desc_cnt; cnt<meters_used; cnt++) {
+    if (script_meter_desc[cnt].trxpin>=0 && script_meter_desc[cnt].txmem) {
+      if ((sml_100ms_cnt%script_meter_desc[cnt].tsecs)==0) {
+        if (script_meter_desc[cnt].max_index>1) {
+          script_meter_desc[cnt].index++;
+          if (script_meter_desc[cnt].index>=script_meter_desc[cnt].max_index) {
+            script_meter_desc[cnt].index=0;
+            sml_desc_cnt++;
+          }
+          cp=SML_Get_Sequence(script_meter_desc[cnt].txmem,script_meter_desc[cnt].index);
+          //SML_Send_Seq(cnt,cp);
+        } else {
+          cp=script_meter_desc[cnt].txmem;
+          //SML_Send_Seq(cnt,cp);
+          sml_desc_cnt++;
+        }
+        //AddLog_P2(LOG_LEVEL_INFO, PSTR(">> %s"),cp);
+        SML_Send_Seq(cnt,cp);
+        if (sml_desc_cnt>=meters_used) {
+          sml_desc_cnt=0;
+        }
+        break;
+      }
+    } else {
+      sml_desc_cnt++;
+    }
+
+    if (sml_desc_cnt>=meters_used) {
+      sml_desc_cnt=0;
+    }
+  }
+}
+
+uint8_t sml_hexnibble(char chr) {
+  uint8_t rVal = 0;
+  if (isdigit(chr)) {
+    rVal = chr - '0';
+  } else  {
+    if (chr >= 'A' && chr <= 'F') rVal = chr + 10 - 'A';
+    if (chr >= 'a' && chr <= 'f') rVal = chr + 10 - 'a';
+  }
+  return rVal;
+}
+
+// send sequence every N Seconds
+void SML_Send_Seq(uint32_t meter,char *seq) {
+  uint8_t sbuff[32];
+  uint8_t *ucp=sbuff,slen=0;
+  char *cp=seq;
+  while (*cp) {
+    if (!*cp || !*(cp+1)) break;
+    if (*cp==',') break;
+    uint8_t iob=(sml_hexnibble(*cp) << 4) | sml_hexnibble(*(cp+1));
+    cp+=2;
+    *ucp++=iob;
+    slen++;
+    if (slen>=sizeof(sbuff)) break;
+  }
+  if (script_meter_desc[meter].type=='m') {
+    *ucp++=0;
+    *ucp++=2;
+    // append crc
+    uint16_t crc = MBUS_calculateCRC(sbuff,6);
+    *ucp++=lowByte(crc);
+    *ucp++=highByte(crc);
+    slen+=4;
+  }
+  if (script_meter_desc[meter].type=='p') {
+    *ucp++=0xc0;
+    *ucp++=0xa8;
+    *ucp++=1;
+    *ucp++=1;
+    *ucp++=0;
+    *ucp++=SML_PzemCrc(sbuff,6);
+    slen+=6;
+  }
+  meter_ss[meter]->write(sbuff,slen);
+}
+#endif // USE_SCRIPT
+
+uint16_t MBUS_calculateCRC(uint8_t *frame, uint8_t num) {
+  uint16_t crc, flag;
+  crc = 0xFFFF;
+  for (uint32_t i = 0; i < num; i++) {
+    crc ^= frame[i];
+    for (uint32_t j = 8; j; j--) {
+      if ((crc & 0x0001) != 0) {        // If the LSB is set
+        crc >>= 1;                      // Shift right and XOR 0xA001
+        crc ^= 0xA001;
+      } else {                          // Else LSB is not set
+        crc >>= 1;                      // Just shift right
+      }
+    }
+  }
+  return crc;
+}
+
+uint8_t SML_PzemCrc(uint8_t *data, uint8_t len) {
+  uint16_t crc = 0;
+  for (uint32_t i = 0; i < len; i++) crc += *data++;
+  return (uint8_t)(crc & 0xFF);
+}
+/*
 // for odd parity init with 1
 uint8_t CalcEvenParity(uint8_t data) {
 uint8_t parity=0;
@@ -1982,7 +2278,7 @@ uint8_t parity=0;
   }
   return parity;
 }
-#endif
+*/
 
 
 // dump to log shows serial data on console
@@ -1999,8 +2295,7 @@ bool XSNS_53_cmd(void) {
         // set dump mode
         cp++;
         dump2log=atoi(cp);
-        ResponseBeginTime();
-        ResponseAppend_P(PSTR(",\"SML\":{\"CMD\":\"dump: %d\"}}"),dump2log);
+        ResponseTime_P(PSTR(",\"SML\":{\"CMD\":\"dump: %d\"}}"),dump2log);
       } else if (*cp=='c') {
           // set ounter
           cp++;
@@ -2020,12 +2315,10 @@ bool XSNS_53_cmd(void) {
               }
             }
           }
-          ResponseBeginTime();
-          ResponseAppend_P(PSTR(",\"SML\":{\"CMD\":\"counter%d: %d\"}}"),index,RtcSettings.pulse_counter[index-1]);
+          ResponseTime_P(PSTR(",\"SML\":{\"CMD\":\"counter%d: %d\"}}"),index,RtcSettings.pulse_counter[index-1]);
       } else if (*cp=='r') {
         // restart
-        ResponseBeginTime();
-        ResponseAppend_P(PSTR(",\"SML\":{\"CMD\":\"restart\"}}"));
+        ResponseTime_P(PSTR(",\"SML\":{\"CMD\":\"restart\"}}"));
         SML_CounterSaveState();
         SML_Init();
       } else {
@@ -2048,6 +2341,7 @@ void SML_CounterSaveState(void) {
 
 
 
+
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
@@ -2065,11 +2359,11 @@ bool Xsns53(byte function) {
         if (dump2log) Dump2log();
         else SML_Poll();
         break;
-#ifdef SML_SEND_SEQ
-      case FUNC_EVERY_SECOND:
-        SendSeq();
+#ifdef USE_SCRIPT
+      case FUNC_EVERY_100_MSECOND:
+        SML_Check_Send();
         break;
-#endif
+#endif // USE_SCRIPT
       case FUNC_JSON_APPEND:
         SML_Show(1);
         break;

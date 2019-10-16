@@ -492,7 +492,9 @@ void KNX_INIT(void)
   if (GetUsedInModule(GPIO_DHT11, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
   if (GetUsedInModule(GPIO_DHT22, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
   if (GetUsedInModule(GPIO_SI7021, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
+#ifdef USE_DS18x20
   if (GetUsedInModule(GPIO_DSB, my_module.io)) { device_param[KNX_TEMPERATURE-1].show = true; }
+#endif
   if (GetUsedInModule(GPIO_DHT11, my_module.io)) { device_param[KNX_HUMIDITY-1].show = true; }
   if (GetUsedInModule(GPIO_DHT22, my_module.io)) { device_param[KNX_HUMIDITY-1].show = true; }
   if (GetUsedInModule(GPIO_SI7021, my_module.io)) { device_param[KNX_HUMIDITY-1].show = true; }
@@ -575,7 +577,7 @@ void KNX_CB_Action(message_t const &msg, void *arg)
       else if (chan->type < 17) // Toggle Relays
       {
         if (!toggle_inhibit) {
-          ExecuteCommandPower((chan->type) -8, 2, SRC_KNX);
+          ExecuteCommandPower((chan->type) -8, POWER_TOGGLE, SRC_KNX);
           if (Settings.flag.knx_enable_enhancement) {
             toggle_inhibit = TOGGLE_INHIBIT_TIME;
           }

@@ -1,9 +1,16 @@
 language: python
 python:
-  - '2.7'
+  - '3.7'
 sudo: false
 install:
   - pip install -U platformio
+  - platformio upgrade
+  - platformio update
+
+cache:
+  directories:
+  - .cache
+  - $HOME/.platformio
 
 env:
   - ENV=sonoff
@@ -13,6 +20,7 @@ env:
   - ENV=sonoff-knx
   - ENV=sonoff-sensors
   - ENV=sonoff-display
+  - ENV=sonoff-ir
   - ENV=sonoff-BG
   - ENV=sonoff-BR
   - ENV=sonoff-CN
