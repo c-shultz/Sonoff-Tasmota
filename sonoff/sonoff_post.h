@@ -558,4 +558,5 @@ char* ToHex_P(const unsigned char * in, size_t insz, char * out, size_t outsz, c
 #define DEBUG_SENSOR_LOG(...)
 #endif
 
+
 #endif  // _SONOFF_POST_H_

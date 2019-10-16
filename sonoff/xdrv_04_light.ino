@@ -137,7 +137,7 @@ const char kLightCommands[] PROGMEM = "|"  // No prefix
 #endif  // USE_WS2812
   D_CMND_COLOR "|" D_CMND_COLORTEMPERATURE "|" D_CMND_DIMMER "|" D_CMND_LEDTABLE "|" D_CMND_FADE "|"
   D_CMND_RGBWWTABLE "|" D_CMND_SCHEME "|" D_CMND_SPEED "|" D_CMND_WAKEUP "|" D_CMND_WAKEUPDURATION "|"
-  D_CMND_WHITE "|" D_CMND_CHANNEL "|" D_CMND_HSBCOLOR "|UNDOCA" ;
+  D_CMND_WHITE "|" D_CMND_CHANNEL "|" D_CMND_HSBCOLOR "|UNDOCA" "|" D_CMND_FLICKER_LIMIT_MIN "|" D_CMND_FLICKER_LIMIT_MAX;;
 
 void (* const LightCommand[])(void) PROGMEM = {
 #ifdef USE_WS2812
@@ -145,7 +145,7 @@ void (* const LightCommand[])(void) PROGMEM = {
 #endif  // USE_WS2812
   &CmndColor, &CmndColorTemperature, &CmndDimmer, &CmndLedTable, &CmndFade,
   &CmndRgbwwTable, &CmndScheme, &CmndSpeed, &CmndWakeup, &CmndWakeupDuration,
-  &CmndWhite, &CmndChannel, &CmndHsbColor, &CmndUndocA };
+  &CmndWhite, &CmndChannel, &CmndHsbColor, &CmndUndocA, &CmndFlickerLimitMin, &CmndFlickerLimitMax };
 
 // Light color mode, either RGB alone, or white-CT alone, or both only available if ct_rgb_linked is false
 enum LightColorModes {
@@ -1781,6 +1781,20 @@ void LightCycleColor(int8_t direction)
   memcpy(Light.new_color, Light.entry_color, sizeof(Light.new_color));
 }
 
+void LightFlicker(void)
+{
+  if (Light.strip_timer_counter % (Settings.light_speed)) {
+    return;
+  }
+
+  for (uint32_t i = 0; i < LST_RGBW; i++) {
+    Light.entry_color[i] = random(Settings.flicker_light_color_min[i], Settings.flicker_light_color_max[i]);
+  }
+
+  memcpy(Light.current_color, Light.entry_color, sizeof(Light.current_color));
+  LightFade();
+}
+
 void LightRandomColor(void)
 {
   bool update = false;
@@ -1900,6 +1914,9 @@ void LightAnimate(void)
         break;
       case LS_RANDOM:
         LightRandomColor();
+        break;
+      case LS_FLICKER:
+        LightFlicker();
         break;
 #ifdef USE_WS2812  // ************************************************************************
       default:
@@ -2338,6 +2355,33 @@ void CmndHsbColor(void)
     }
   }
 }
+
+void SetFlickerLimit(uint8_t *limitSetting)
+{
+  char *p;
+  char *str;
+  memset(limitSetting, 0x00, sizeof(Settings.flicker_light_color_min));
+  if (strstr(XdrvMailbox.data, ",") != nullptr) {             // Decimal entry
+    int8_t i = 0;
+    for (str = strtok_r(XdrvMailbox.data, ",", &p); str && i < 6; str = strtok_r(nullptr, ",", &p)) {
+      if (i < LST_MAX) {
+		limitSetting[i++] = atoi(str);
+      }
+    }
+  }
+  ResponseCmndNumber(limitSetting[0]);
+}
+
+void CmndFlickerLimitMin(void)
+{
+	SetFlickerLimit(Settings.flicker_light_color_min);
+}
+
+void CmndFlickerLimitMax(void)
+{
+	SetFlickerLimit(Settings.flicker_light_color_max);
+}
+
 
 #ifdef USE_WS2812  //  ***********************************************************************
 void CmndLed(void)

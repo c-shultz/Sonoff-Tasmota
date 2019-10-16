@@ -372,6 +372,8 @@
 #define D_CMND_WAKEUPDURATION "WakeUpDuration"
 #define D_CMND_WHITE "White"
 #define D_CMND_WIDTH "Width"
+#define D_CMND_FLICKER_LIMIT_MIN "FlickerLimitMin"
+#define D_CMND_FLICKER_LIMIT_MAX "FlickerLimitMax"
 
 // Commands xdrv_05_irremote.ino
 #define D_CMND_IRSEND "IRSend"

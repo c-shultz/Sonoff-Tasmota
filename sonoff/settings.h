@@ -368,7 +368,10 @@ struct SYSCFG {
   uint8_t       data8[32];                 // E00
   uint16_t      data16[16];                // E20
 
-  uint8_t       free_e20[448];             // E40
+  uint8_t       flicker_light_color_min[5];
+  uint8_t       flicker_light_color_max[5];
+
+  uint8_t       free_e20[438];             
 
                                            // FFF last location
 } Settings;
