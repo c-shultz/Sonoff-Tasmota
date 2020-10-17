@@ -614,8 +614,6 @@ struct {
   uint16_t      shutter_pwmrange[2][MAX_SHUTTERS];  // F4A
   uint8_t       flicker_light_color_min[5];
   uint8_t       flicker_light_color_max[5];
- {:w
- } 
   uint8_t       free_f5a[79];             // F5A - Decrement if adding new Setting variables just above and below
 
   // Only 32 bit boundary variables below
